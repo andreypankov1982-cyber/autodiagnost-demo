@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>AutoDiag AI PRO</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="light">
+
+<!-- ====== TOP MENU ====== -->
+<header class="topbar">
+    <div class="logo">
+        <span class="logo-bolt">⚡</span>
+        <span class="logo-icon">🚗</span>
+        <span class="logo-text">AutoDiag <strong>AI PRO</strong></span>
+    </div>
+
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <span id="theme-icon">🌞</span>
+    </div>
+</header>
+
+<!-- ====== MAIN CARD ====== -->
+<div class="wrapper">
+    <div class="card">
+        <h1 class="page-title">Умная AI-диагностика автомобиля</h1>
+        <p class="subtitle">На основе симптомов и ошибок OBD-II</p>
+
+        <h3 class="section-title">🚙 1. Данные автомобиля</h3>
+
+        <label>Марка:</label>
+        <input id="brand" placeholder="Toyota, BMW...">
+
+        <label>Модель:</label>
+        <input id="model" placeholder="Camry, X5...">
+
+        <label>Год выпуска:</label>
+        <input id="year" placeholder="2012">
+
+        <label>Тип двигателя:</label>
+        <select id="engine">
+            <option value="Бензин">Бензин</option>
+            <option value="Дизель">Дизель</option>
+            <option value="Гибрид">Гибрид</option>
+            <option value="Электро">Электро</option>
+        </select>
+
+        <label>Трансмиссия:</label>
+        <select id="trans">
+            <option value="АКПП">АКПП</option>
+            <option value="МКПП">МКПП</option>
+            <option value="Вариатор">Вариатор</option>
+            <option value="Робот">Робот</option>
+        </select>
+
+        <h3 class="section-title">🛠️ 2. Симптомы и ошибки</h3>
+
+        <label>Симптомы неисправности:</label>
+        <textarea id="symptoms" placeholder="Стук, вибрация, плавают обороты..."></textarea>
+
+        <label>Коды ошибок OBD:</label>
+        <textarea id="errors" placeholder="P0171, P0420..."></textarea>
+
+        <div class="btn-box">
+            <button class="btn-main" onclick="generate()">🔧 Сформировать диагностику</button>
+            <button class="btn-clear" onclick="clearForm()">Очистить</button>
+            <button class="btn-main" onclick="downloadPDF()" style="background:#ff9900">📄 Скачать PDF</button>
+        </div>
+
+        <div id="result" class="result-box fade-in"></div>
+    </div>
+</div>
+
+<!-- jsPDF для PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="script.js"></script>
+</body>
+</html>
