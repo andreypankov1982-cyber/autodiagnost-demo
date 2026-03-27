@@ -1,3 +1,13 @@
+/* ===== API CONFIG ===== */
+
+const DEFAULT_API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:3000" : "";
+const RAW_API_BASE_URL = typeof window.__API_BASE_URL__ === "string" ? window.__API_BASE_URL__ : DEFAULT_API_BASE_URL;
+const API_BASE_URL = RAW_API_BASE_URL.trim().replace(/\/+$/, "");
+
+function buildApiUrl(path) {
+    return API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+}
+
 /* ===== СМЕНА ТЕМЫ ===== */
 
 function toggleTheme() {
@@ -54,7 +64,7 @@ async function generate() {
     resultBox.innerHTML = "⏳ Анализирую данные...";
 
     try {
-        const response = await fetch("http://localhost:3000/api/diagnose", {
+        const response = await fetch(buildApiUrl("/api/diagnose"), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
