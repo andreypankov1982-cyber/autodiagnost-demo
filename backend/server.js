@@ -3,7 +3,6 @@ import cors from "cors";
 import OpenAI from "openai";
 import dotenv from "dotenv";
 
-
 class ValidationError extends Error {
   constructor(message) {
     super(message);
@@ -23,26 +22,45 @@ if (!process.env.OPENAI_API_KEY) {
   process.exit(1);
 }
 
+const OPENAI_MODEL = "gpt-3.5-turbo";
 const app = express();
+
 app.disable("x-powered-by");
 app.use(cors());
 app.use(express.json({ limit: "64kb" }));
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+function sendError(res, status, message) {
+  return res.status(status).json({
+    success: false,
+    error: { message },
+  });
+}
+
+function getOpenAIErrorInfo(error) {
+  const status = error?.status || error?.statusCode || error?.response?.status;
+  const type = error?.type || "unknown";
+  const code = error?.code || "unknown";
+  const message = error?.message || "Ошибка при обращении к OpenAI";
+
+  return { status, type, code, message };
+}
+
 function normalizeToString(value, fieldName) {
   if (value === undefined || value === null) {
     throw new ValidationError(`${fieldName} обязателен`);
   }
+
   if (typeof value !== "string") {
     // Разрешаем числа/булевы только как строковое представление.
     if (typeof value === "number" || typeof value === "boolean") return String(value);
     throw new ValidationError(`${fieldName} должно быть строкой`);
   }
 
-  const s = value.trim();
-  if (!s) throw new ValidationError(`${fieldName} должно быть непустой строкой`);
-  return s;
+  const normalized = value.trim();
+  if (!normalized) throw new ValidationError(`${fieldName} должно быть непустой строкой`);
+  return normalized;
 }
 
 function normalizeSymptomsOrErrors(value, fieldName) {
@@ -68,8 +86,7 @@ function normalizeSymptomsOrErrors(value, fieldName) {
   }
 
   const maxItems = 20;
-  const trimmed = normalized.slice(0, maxItems);
-  return trimmed;
+  return normalized.slice(0, maxItems);
 }
 
 function validatePayload(body) {
@@ -87,6 +104,7 @@ function validatePayload(body) {
 
   const year = Number(yearRaw);
   if (!Number.isInteger(year)) throw new ValidationError("year должен быть целым числом");
+
   const currentYear = new Date().getFullYear();
   if (year < 1950 || year > currentYear + 1) {
     throw new ValidationError(`year должен быть в диапазоне от 1950 до ${currentYear + 1}`);
@@ -139,25 +157,9 @@ app.post("/api/diagnose", async (req, res) => {
 
     let completion;
     try {
-      const openaiChatCompletionsUrl =
-        "https://api.openai.com/v1/chat/completions";
-      const model = "gpt-3.5-turbo";
-      const apiKey = process.env.OPENAI_API_KEY || "";
-
-      // Делаем максимально подробный лог для диагностики проблем ключа/доступа.
-      console.log(
-        "🔗 OpenAI request URL:",
-        openaiChatCompletionsUrl,
-      );
-      console.log("🧠 OpenAI model:", model);
-      console.log(
-        "🔑 OPENAI_API_KEY prefix:",
-        apiKey ? apiKey.slice(0, 12) + "..." : "EMPTY",
-        "(len=" + apiKey.length + ")",
-      );
-
+      console.log("🧠 OpenAI model:", OPENAI_MODEL);
       completion = await openaiClient.chat.completions.create({
-        model,
+        model: OPENAI_MODEL,
         messages: [
           {
             role: "system",
@@ -171,51 +173,32 @@ app.post("/api/diagnose", async (req, res) => {
       });
       console.log("✅ Ответ от OpenAI получен");
     } catch (openaiErr) {
-      const msg = openaiErr?.message || String(openaiErr);
-      const statusCode = openaiErr?.status || openaiErr?.statusCode;
-      const type = openaiErr?.type;
-      const code = openaiErr?.code;
-      const responseStatus = openaiErr?.response?.status;
-      const responseData = openaiErr?.response?.data;
+      const { status, type, code, message } = getOpenAIErrorInfo(openaiErr);
 
-      console.error("❌ OpenAI error text:", msg);
-      console.error("❌ OpenAI status code:", statusCode ?? responseStatus ?? "unknown");
-      console.error("❌ OpenAI error type:", type ?? "unknown");
-      console.error("❌ OpenAI error code:", code ?? "unknown");
-      if (responseData) {
-        console.error("❌ OpenAI error response.data:", responseData);
-      }
+      console.error("❌ OpenAI status:", status ?? "unknown");
+      console.error("❌ OpenAI type:", type);
+      console.error("❌ OpenAI code:", code);
+      console.error("❌ OpenAI message:", message);
 
-      // Полный объект ошибки (без секретов, SDK обычно маскирует).
-      console.error("❌ OpenAI error object:", openaiErr);
-
-      return res.status(502).json({
-        success: false,
-        error: {
-          message: msg,
-        },
-      });
+      return sendError(res, 502, message);
     }
 
     const diagnosis = completion?.choices?.[0]?.message?.content?.trim();
     if (!diagnosis) {
-      return res.status(502).json({
-        success: false,
-        error: { message: "AI вернул пустой ответ" },
-      });
+      return sendError(res, 502, "AI вернул пустой ответ");
     }
 
     return res.json({ success: true, diagnosis });
   } catch (err) {
+    const isValidationError = err instanceof ValidationError;
+    const status = isValidationError ? 400 : 500;
     const message = err instanceof Error ? err.message : "Unknown error";
-    const status = err instanceof ValidationError ? 400 : 500;
 
-    return res.status(status).json({
-      success: false,
-      error: {
-        message,
-      },
-    });
+    if (!isValidationError) {
+      console.error("❌ Internal server error:", err);
+    }
+
+    return sendError(res, status, message);
   }
 });
 
